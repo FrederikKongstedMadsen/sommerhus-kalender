@@ -1,0 +1,11 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /bookings/{document=**} {
+      // Allow read and write access to all bookings
+      // This is suitable for family use where everyone should be able to manage bookings
+      allow read, write: if true;
+    }
+  }
+}
+
