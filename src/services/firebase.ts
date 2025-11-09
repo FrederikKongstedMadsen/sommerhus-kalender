@@ -10,7 +10,7 @@ import {
   Timestamp,
   onSnapshot,
 } from "firebase/firestore";
-import type { Booking } from "../types/booking";
+import type { Booking, BookingType, BookingColor } from "../types/booking";
 
 // Firebase configuration - these will be set via environment variables
 const firebaseConfig = {
@@ -48,6 +48,9 @@ export const getBookings = async (): Promise<Booking[]> => {
     startDate: timestampToISO(doc.data().startDate),
     endDate: timestampToISO(doc.data().endDate),
     createdAt: timestampToISO(doc.data().createdAt),
+    type: (doc.data().type || "booking") as BookingType, // Default to "booking" for backwards compatibility
+    note: doc.data().note || undefined,
+    color: doc.data().color || undefined,
   }));
 };
 
@@ -64,25 +67,42 @@ export const subscribeToBookings = (
       startDate: timestampToISO(doc.data().startDate),
       endDate: timestampToISO(doc.data().endDate),
       createdAt: timestampToISO(doc.data().createdAt),
+      type: (doc.data().type || "booking") as BookingType, // Default to "booking" for backwards compatibility
+      note: doc.data().note || undefined,
+      color: doc.data().color || undefined,
     }));
     callback(bookings);
   });
 };
 
-// Create a new booking
+// Create a new booking or wish
 export const createBooking = async (
   name: string,
   startDate: string,
-  endDate: string
+  endDate: string,
+  type: BookingType = "booking",
+  note?: string,
+  color?: BookingColor
 ): Promise<string> => {
   const bookingsCollection = collection(db, "bookings");
 
-  const docRef = await addDoc(bookingsCollection, {
+  const bookingData: any = {
     name,
     startDate: isoToTimestamp(startDate),
     endDate: isoToTimestamp(endDate),
     createdAt: Timestamp.now(),
-  });
+    type,
+  };
+
+  if (note && note.trim()) {
+    bookingData.note = note.trim();
+  }
+
+  if (color) {
+    bookingData.color = color;
+  }
+
+  const docRef = await addDoc(bookingsCollection, bookingData);
 
   return docRef.id;
 };
@@ -92,14 +112,44 @@ export const updateBooking = async (
   id: string,
   name: string,
   startDate: string,
-  endDate: string
+  endDate: string,
+  type?: BookingType,
+  note?: string,
+  color?: BookingColor
 ): Promise<void> => {
   const bookingRef = doc(db, "bookings", id);
 
-  await updateDoc(bookingRef, {
+  const updateData: any = {
     name,
     startDate: isoToTimestamp(startDate),
     endDate: isoToTimestamp(endDate),
+  };
+
+  if (type !== undefined) {
+    updateData.type = type;
+  }
+
+  if (note !== undefined) {
+    if (note.trim()) {
+      updateData.note = note.trim();
+    } else {
+      // Remove note if empty string
+      updateData.note = null;
+    }
+  }
+
+  if (color !== undefined) {
+    updateData.color = color || null;
+  }
+
+  await updateDoc(bookingRef, updateData);
+};
+
+// Accept a wish (convert wish to booking)
+export const acceptWish = async (wishId: string): Promise<void> => {
+  const wishRef = doc(db, "bookings", wishId);
+  await updateDoc(wishRef, {
+    type: "booking",
   });
 };
 
@@ -109,7 +159,7 @@ export const deleteBooking = async (id: string): Promise<void> => {
   await deleteDoc(bookingRef);
 };
 
-// Check if dates are available (don't overlap with existing bookings)
+// Check if dates are available (don't overlap with existing bookings - ignores wishes)
 export const checkDateAvailability = async (
   startDate: string,
   endDate: string,
@@ -132,6 +182,11 @@ export const checkDateAvailability = async (
   for (const booking of bookings) {
     // Skip the booking we're updating
     if (excludeId && booking.id === excludeId) {
+      continue;
+    }
+
+    // Only check against actual bookings, not wishes
+    if (booking.type === "wish") {
       continue;
     }
 

@@ -4,8 +4,9 @@ import {
   updateBooking,
   deleteBooking,
   checkDateAvailability,
+  acceptWish,
 } from "../services/firebase";
-import type { Booking } from "../types/booking";
+import type { Booking, BookingType, BookingColor } from "../types/booking";
 import type { DateRange } from "../types/booking";
 
 interface BookingFormProps {
@@ -14,6 +15,7 @@ interface BookingFormProps {
   onBookingCreated: () => void;
   onBookingUpdated: () => void;
   onBookingDeleted: () => void;
+  onWishAccepted: () => void;
   onCancel: () => void;
   onDateRangeChange: (range: DateRange) => void;
 }
@@ -24,12 +26,34 @@ export const BookingForm = ({
   onBookingCreated,
   onBookingUpdated,
   onBookingDeleted,
+  onWishAccepted,
   onCancel,
   onDateRangeChange,
 }: BookingFormProps) => {
   const [name, setName] = useState(editingBooking?.name || "");
+  const [note, setNote] = useState(editingBooking?.note || "");
+  const [color, setColor] = useState<BookingColor | undefined>(
+    editingBooking?.color
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [bookingType, setBookingType] = useState<BookingType>(
+    editingBooking?.type || "booking"
+  );
+
+  // Available colors
+  const availableColors: { value: BookingColor; label: string; bg: string }[] =
+    [
+      { value: "blue", label: "Blå", bg: "bg-blue-200" },
+      { value: "green", label: "Grøn", bg: "bg-green-200" },
+      { value: "yellow", label: "Gul", bg: "bg-yellow-200" },
+      { value: "purple", label: "Lilla", bg: "bg-purple-200" },
+      { value: "pink", label: "Pink", bg: "bg-pink-200" },
+      { value: "indigo", label: "Indigo", bg: "bg-indigo-200" },
+      { value: "orange", label: "Orange", bg: "bg-orange-200" },
+      { value: "red", label: "Rød", bg: "bg-red-200" },
+      { value: "teal", label: "Turkis", bg: "bg-teal-200" },
+    ];
 
   // Local state for editable dates
   const [localStartDate, setLocalStartDate] = useState<string>("");
@@ -43,24 +67,39 @@ export const BookingForm = ({
     return `${year}-${month}-${day}`;
   };
 
+  // Update form when editingBooking changes
   useEffect(() => {
     if (editingBooking) {
       setName(editingBooking.name);
+      setNote(editingBooking.note || "");
+      setColor(editingBooking.color);
+      setBookingType(editingBooking.type);
       const start = new Date(editingBooking.startDate);
       const end = new Date(editingBooking.endDate);
       setLocalStartDate(formatDateForInput(start));
       setLocalEndDate(formatDateForInput(end));
-    } else if (selectedRange) {
-      setName("");
-      setLocalStartDate(formatDateForInput(selectedRange.start));
-      setLocalEndDate(formatDateForInput(selectedRange.end));
+      setError(null);
     } else {
       setName("");
+      setNote("");
+      setColor(undefined);
+      setBookingType("booking");
+      setLocalStartDate("");
+      setLocalEndDate("");
+      setError(null);
+    }
+  }, [editingBooking]);
+
+  // Update dates when selectedRange changes (only when not editing)
+  useEffect(() => {
+    if (!editingBooking && selectedRange) {
+      setLocalStartDate(formatDateForInput(selectedRange.start));
+      setLocalEndDate(formatDateForInput(selectedRange.end));
+    } else if (!editingBooking && !selectedRange) {
       setLocalStartDate("");
       setLocalEndDate("");
     }
-    setError(null);
-  }, [editingBooking, selectedRange]);
+  }, [selectedRange, editingBooking]);
 
   const formatDate = (date: Date): string => {
     return date.toLocaleDateString("da-DK", {
@@ -142,17 +181,19 @@ export const BookingForm = ({
       const startDateISO = startDate.toISOString();
       const endDateISO = endDate.toISOString();
 
-      // Check availability
-      const isAvailable = await checkDateAvailability(
-        startDateISO,
-        endDateISO,
-        editingBooking?.id
-      );
+      // Check availability only for bookings (wishes can overlap)
+      if (bookingType === "booking") {
+        const isAvailable = await checkDateAvailability(
+          startDateISO,
+          endDateISO,
+          editingBooking?.id
+        );
 
-      if (!isAvailable) {
-        setError("Disse datoer er allerede booket");
-        setIsSubmitting(false);
-        return;
+        if (!isAvailable) {
+          setError("Disse datoer er allerede booket");
+          setIsSubmitting(false);
+          return;
+        }
       }
 
       if (editingBooking) {
@@ -161,12 +202,22 @@ export const BookingForm = ({
           editingBooking.id,
           name.trim(),
           startDateISO,
-          endDateISO
+          endDateISO,
+          bookingType,
+          note.trim() || undefined,
+          color
         );
         onBookingUpdated();
       } else {
-        // Create new booking
-        await createBooking(name.trim(), startDateISO, endDateISO);
+        // Create new booking or wish
+        await createBooking(
+          name.trim(),
+          startDateISO,
+          endDateISO,
+          bookingType,
+          note.trim() || undefined,
+          color
+        );
         onBookingCreated();
       }
 
@@ -185,7 +236,9 @@ export const BookingForm = ({
 
     if (
       !confirm(
-        `Er du sikker på, at du vil slette bookingen for ${editingBooking.name}?`
+        `Er du sikker på, at du vil slette ${
+          editingBooking.type === "wish" ? "ønsket" : "bookingen"
+        } for ${editingBooking.name}?`
       )
     ) {
       return;
@@ -206,6 +259,23 @@ export const BookingForm = ({
     }
   };
 
+  const handleAcceptWish = async () => {
+    if (!editingBooking || editingBooking.type !== "wish") return;
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      await acceptWish(editingBooking.id);
+      onWishAccepted();
+    } catch (err) {
+      setError("Der opstod en fejl ved accept af ønske. Prøv igen.");
+      console.error("Error accepting wish:", err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const displayRange = editingBooking
     ? {
         start: new Date(editingBooking.startDate),
@@ -220,7 +290,11 @@ export const BookingForm = ({
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
       <h3 className="text-xl font-bold text-gray-800 mb-4">
-        {editingBooking ? "Rediger booking" : "Opret booking"}
+        {editingBooking
+          ? editingBooking.type === "wish"
+            ? "Rediger ønske"
+            : "Rediger booking"
+          : "Opret booking eller ønske"}
       </h3>
 
       {displayRange && (
@@ -269,6 +343,44 @@ export const BookingForm = ({
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        {!editingBooking && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Type
+            </label>
+            <div className="flex gap-4">
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="bookingType"
+                  value="booking"
+                  checked={bookingType === "booking"}
+                  onChange={(e) =>
+                    setBookingType(e.target.value as BookingType)
+                  }
+                  className="mr-2"
+                  disabled={isSubmitting}
+                />
+                <span>Booking</span>
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="bookingType"
+                  value="wish"
+                  checked={bookingType === "wish"}
+                  onChange={(e) =>
+                    setBookingType(e.target.value as BookingType)
+                  }
+                  className="mr-2"
+                  disabled={isSubmitting}
+                />
+                <span>Ønske</span>
+              </label>
+            </div>
+          </div>
+        )}
+
         <div>
           <label
             htmlFor="name"
@@ -287,13 +399,89 @@ export const BookingForm = ({
           />
         </div>
 
+        <div>
+          <label
+            htmlFor="note"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Note (valgfrit)
+          </label>
+          <textarea
+            id="note"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={3}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+            placeholder="Tilføj en note til bookingen..."
+            disabled={isSubmitting}
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Farve (valgfrit)
+          </label>
+          <div className="grid grid-cols-3 gap-2">
+            {availableColors.map((colorOption) => (
+              <label
+                key={colorOption.value}
+                className={`
+                  flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition-all
+                  ${
+                    color === colorOption.value
+                      ? "border-blue-600 ring-2 ring-blue-300"
+                      : "border-gray-300 hover:border-gray-400"
+                  }
+                  ${colorOption.bg}
+                `}
+              >
+                <input
+                  type="radio"
+                  name="color"
+                  value={colorOption.value}
+                  checked={color === colorOption.value}
+                  onChange={(e) => setColor(e.target.value as BookingColor)}
+                  className="sr-only"
+                  disabled={isSubmitting}
+                />
+                <span className="text-sm font-medium text-gray-800">
+                  {colorOption.label}
+                </span>
+              </label>
+            ))}
+            <label
+              className={`
+                flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition-all bg-white
+                ${
+                  color === undefined
+                    ? "border-blue-600 ring-2 ring-blue-300"
+                    : "border-gray-300 hover:border-gray-400"
+                }
+              `}
+            >
+              <input
+                type="radio"
+                name="color"
+                value=""
+                checked={color === undefined}
+                onChange={() => setColor(undefined)}
+                className="sr-only"
+                disabled={isSubmitting}
+              />
+              <span className="text-sm font-medium text-gray-600">
+                Standard
+              </span>
+            </label>
+          </div>
+        </div>
+
         {error && (
           <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
             {error}
           </div>
         )}
 
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap">
           <button
             type="submit"
             disabled={isSubmitting || !name.trim()}
@@ -303,8 +491,21 @@ export const BookingForm = ({
               ? "Gemmer..."
               : editingBooking
               ? "Opdater"
+              : bookingType === "wish"
+              ? "Opret ønske"
               : "Opret booking"}
           </button>
+
+          {editingBooking && editingBooking.type === "wish" && (
+            <button
+              type="button"
+              onClick={handleAcceptWish}
+              disabled={isSubmitting}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+            >
+              Acceptér ønske
+            </button>
+          )}
 
           {editingBooking && (
             <button

@@ -135,6 +135,11 @@ function App() {
     setEditingBooking(null);
   };
 
+  const handleWishAccepted = () => {
+    setSelectedRange(null);
+    setEditingBooking(null);
+  };
+
   const handleCancel = () => {
     setSelectedRange(null);
     setEditingBooking(null);
@@ -185,6 +190,7 @@ function App() {
               onBookingCreated={handleBookingCreated}
               onBookingUpdated={handleBookingUpdated}
               onBookingDeleted={handleBookingDeleted}
+              onWishAccepted={handleWishAccepted}
               onCancel={handleCancel}
               onDateRangeChange={handleDateRangeChange}
             />

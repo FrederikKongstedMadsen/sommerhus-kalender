@@ -165,7 +165,7 @@ export const Calendar = ({
       </div>
 
       {/* Day Names Header */}
-      <div className="grid grid-cols-7 gap-1 mb-2">
+      <div className="grid grid-cols-7 gap-1 mb-2 select-none">
         {dayNames.map((day, index) => (
           <div
             key={index}
@@ -177,7 +177,7 @@ export const Calendar = ({
       </div>
 
       {/* Calendar Grid */}
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-1 select-none">
         {calendarDays.map((date, index) => {
           const dateCopy = new Date(date);
           const isCurrentMonth = date.getMonth() === currentMonth.getMonth();
