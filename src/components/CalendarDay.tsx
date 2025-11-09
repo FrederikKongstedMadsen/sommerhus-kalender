@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Booking } from "../types/booking";
 
 interface CalendarDayProps {
@@ -88,6 +89,8 @@ export const CalendarDay = ({
   const borderClasses =
     isToday && !booking && !isSelected ? "ring-2 ring-blue-400" : "";
 
+  const [showTooltip, setShowTooltip] = useState(false);
+
   // Build tooltip text
   const tooltipText = booking
     ? booking.note
@@ -109,18 +112,32 @@ export const CalendarDay = ({
         ${booking ? "font-semibold" : ""}
         ${booking?.type === "wish" ? "border-dashed border-2" : ""}
         select-none
+        relative
       `}
       onClick={() => onDateClick(date)}
-      onMouseEnter={() => onDateMouseEnter(date)}
+      onMouseEnter={() => {
+        onDateMouseEnter(date);
+        if (tooltipText) {
+          setShowTooltip(true);
+        }
+      }}
+      onMouseLeave={() => setShowTooltip(false)}
       onMouseDown={() => onDateMouseDown(date)}
       onDragStart={(e) => e.preventDefault()}
-      title={tooltipText || undefined}
     >
       <div className="text-sm font-medium">{dayNumber}</div>
       {booking && (
         <div className="text-xs mt-1 truncate">
           {booking.type === "wish" ? "💭 " : ""}
           {booking.name}
+        </div>
+      )}
+      {showTooltip && tooltipText && (
+        <div className="absolute z-50 bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg whitespace-nowrap pointer-events-none">
+          {tooltipText}
+          <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1">
+            <div className="border-4 border-transparent border-t-gray-900"></div>
+          </div>
         </div>
       )}
     </div>
