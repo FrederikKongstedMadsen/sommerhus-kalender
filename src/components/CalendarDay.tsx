@@ -88,6 +88,15 @@ export const CalendarDay = ({
   const borderClasses =
     isToday && !booking && !isSelected ? "ring-2 ring-blue-400" : "";
 
+  // Build tooltip text
+  const tooltipText = booking
+    ? booking.note
+      ? `${booking.name}${booking.type === "wish" ? " (Ønske)" : ""} - ${
+          booking.note
+        }`
+      : `${booking.name}${booking.type === "wish" ? " (Ønske)" : ""}`
+    : "";
+
   return (
     <div
       className={`
@@ -105,19 +114,11 @@ export const CalendarDay = ({
       onMouseEnter={() => onDateMouseEnter(date)}
       onMouseDown={() => onDateMouseDown(date)}
       onDragStart={(e) => e.preventDefault()}
+      title={tooltipText || undefined}
     >
       <div className="text-sm font-medium">{dayNumber}</div>
       {booking && (
-        <div
-          className="text-xs mt-1 truncate"
-          title={
-            booking.note
-              ? `${booking.name}${booking.type === "wish" ? " (Ønske)" : ""}\n${
-                  booking.note
-                }`
-              : booking.name
-          }
-        >
+        <div className="text-xs mt-1 truncate">
           {booking.type === "wish" ? "💭 " : ""}
           {booking.name}
         </div>
