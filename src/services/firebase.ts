@@ -159,7 +159,7 @@ export const deleteBooking = async (id: string): Promise<void> => {
   await deleteDoc(bookingRef);
 };
 
-// Check if dates are available (don't overlap with existing bookings - ignores wishes)
+// Check if dates are available (don't overlap with existing bookings or wishes)
 export const checkDateAvailability = async (
   startDate: string,
   endDate: string,
@@ -185,11 +185,7 @@ export const checkDateAvailability = async (
       continue;
     }
 
-    // Only check against actual bookings, not wishes
-    if (booking.type === "wish") {
-      continue;
-    }
-
+    // Check against both bookings and wishes
     const bookingStart = normalizeDate(new Date(booking.startDate));
     const bookingEnd = normalizeDate(new Date(booking.endDate));
 

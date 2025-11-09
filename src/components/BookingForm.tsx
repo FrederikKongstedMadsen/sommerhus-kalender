@@ -181,19 +181,21 @@ export const BookingForm = ({
       const startDateISO = startDate.toISOString();
       const endDateISO = endDate.toISOString();
 
-      // Check availability only for bookings (wishes can overlap)
-      if (bookingType === "booking") {
-        const isAvailable = await checkDateAvailability(
-          startDateISO,
-          endDateISO,
-          editingBooking?.id
-        );
+      // Check availability for both bookings and wishes
+      const isAvailable = await checkDateAvailability(
+        startDateISO,
+        endDateISO,
+        editingBooking?.id
+      );
 
-        if (!isAvailable) {
-          setError("Disse datoer er allerede booket");
-          setIsSubmitting(false);
-          return;
-        }
+      if (!isAvailable) {
+        setError(
+          bookingType === "wish"
+            ? "Disse datoer er allerede booket eller ønsket"
+            : "Disse datoer er allerede booket eller ønsket"
+        );
+        setIsSubmitting(false);
+        return;
       }
 
       if (editingBooking) {
