@@ -224,6 +224,8 @@ export const BookingForm = ({
       }
 
       setName("");
+      setNote("");
+      setColor(undefined);
       setError(null);
     } catch (err) {
       setError("Der opstod en fejl. Prøv igen.");
