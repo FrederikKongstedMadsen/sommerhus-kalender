@@ -207,6 +207,8 @@ function App() {
             <li>Klik og træk for at vælge flere datoer</li>
             <li>Klik på en booket dato for at redigere eller slette booking</li>
             <li>Du kan navigere mellem måneder med pilene</li>
+            <li>Nøgle boksens kode er: 1166</li>
+            <li>Husk at rydde op efter dit/jeres besøg</li>
           </ul>
         </div>
       </div>
