@@ -12,7 +12,7 @@ import type { DateRange } from "../types/booking";
 interface BookingFormProps {
   selectedRange: DateRange | null;
   editingBooking: Booking | null;
-  onBookingCreated: () => void;
+  onBookingCreated: (booking: Booking) => void;
   onBookingUpdated: () => void;
   onBookingDeleted: () => void;
   onWishAccepted: () => void;
@@ -212,7 +212,7 @@ export const BookingForm = ({
         onBookingUpdated();
       } else {
         // Create new booking or wish
-        await createBooking(
+        const newBookingId = await createBooking(
           name.trim(),
           startDateISO,
           endDateISO,
@@ -220,7 +220,20 @@ export const BookingForm = ({
           note.trim() || undefined,
           color
         );
-        onBookingCreated();
+
+        // Create booking object to pass to callback
+        const newBooking: Booking = {
+          id: newBookingId,
+          name: name.trim(),
+          startDate: startDateISO,
+          endDate: endDateISO,
+          createdAt: new Date().toISOString(),
+          type: bookingType,
+          note: note.trim() || undefined,
+          color: color,
+        };
+
+        onBookingCreated(newBooking);
       }
 
       setName("");

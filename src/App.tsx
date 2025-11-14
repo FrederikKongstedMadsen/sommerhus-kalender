@@ -4,6 +4,7 @@ import { BookingForm } from "./components/BookingForm";
 import { useBookings } from "./hooks/useBookings";
 import type { Booking } from "./types/booking";
 import type { DateRange } from "./types/booking";
+import { useEmail } from "./hooks/useEmail";
 
 function App() {
   const { bookings, loading } = useBookings();
@@ -12,7 +13,7 @@ function App() {
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const dragStartDate = useRef<Date | null>(null);
-
+  const { sendEmail } = useEmail();
   // Normalize date to start of day
   const normalizeDate = (date: Date): Date => {
     const normalized = new Date(date);
@@ -120,7 +121,12 @@ function App() {
     };
   }, [handleMouseUp]);
 
-  const handleBookingCreated = () => {
+  const handleBookingCreated = (booking: Booking) => {
+    console.log("Booking created", booking);
+    // Only send email for actual bookings, not wishes
+
+    sendEmail(booking);
+
     setSelectedRange(null);
     setEditingBooking(null);
   };
